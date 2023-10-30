@@ -1,0 +1,117 @@
+---
+title: 'Chapter 3: word frequency'
+author: "Jinbo Niu"
+date: "2023/5/6"
+output: html_document
+---
+# IDF(Inverse document frequency)
+```{r}
+library(dplyr)
+library(janeaustenr)
+library(tidytext)
+
+
+```
+## Word frequency in Jane austen's work
+```{r}
+book_words <- austen_books()%>%
+  unnest_tokens(word,text)%>%count(book,word,sort = TRUE)%>%ungroup()
+
+total_words <- book_words %>%
+  group_by(book)%>%summarise(total = sum(n))
+
+book_words <- left_join(book_words,total_words)
+
+book_words
+```
+
+### visualize it
+
+```{r}
+library(ggplot2)
+
+ggplot(book_words,aes(n/total,fill = book))+
+  geom_histogram(show.legend = FALSE)+
+  xlim(NA,0.0009)+facet_wrap(~book,ncol = 2,scales = "free_y")
+                                                          
+```
+#Zipf 定律：词出现的频率与其排名呈反比
+
+##Zipf Law in Jane Austen's work
+```{r}
+freq_by_rank <- book_words %>%
+  group_by(book)%>%
+  mutate(rank = row_number(),`term frequency` = n/total)
+
+freq_by_rank
+```
+```{r}
+library(ggplot2)
+freq_by_rank %>%ggplot(aes(rank,`term frequency`,color = book))+
+  geom_line(size = 1.1,alpha = 0.8,show.legend = FALSE)+
+  scale_x_log10()+scale_y_log10()
+
+```
+#Zipf indicator in Jane Austen's work
+```{r}
+rank_subset <- freq_by_rank %>%
+  filter(rank<500,rank>10)
+
+lm(log10(`term frequency`)~log10(rank),data = rank_subset)
+
+```
+The slope is close to -1, so it generally fits the Zipf principle.
+Now let's visualize it.
+
+```{r}
+rank_subset%>%
+  ggplot(aes(rank,`term frequency`,color = book))+
+  geom_abline(intercept = -0.62,slope = -1.1,color = "grey50",linetype = 2)+
+  geom_line(size = 1.1, alpha = 0.8,show.legend = FALSE)+
+  scale_x_log10()+scale_y_log10()
+
+```
+### Bind-tf-idf
+bind_tf_idf function is in tidytext package
+```{r}
+book_words <- book_words%>%
+  bind_tf_idf(word,book,n)
+
+book_words
+
+```
+```{r}
+#since total is not necessary for bind_tf_idf function, so we won't select it when exploring the tf-idf with bind_tf_idf function
+book_words %>%
+  select(-total)%>%
+  arrange(desc(tf_idf))
+
+```
+#Visualize words with the highest tf-idf
+```{r}
+book_words %>%
+  arrange(desc(tf_idf))%>%
+  mutate(word = factor(word,levels = rev(unique(word))))%>%
+  group_by(book)%>%
+  top_n(15)%>%
+  ungroup()%>%
+  ggplot(aes(word, tf_idf, fill = book))+geom_col(show.legend = FALSE)+
+  labs(x = NULL,y = "tf-idf")+facet_wrap(~book,ncol = 2,scales = "free")+
+  coord_flip()
+```
+## Physics work
+This section will explore the difference between literature work and physics texts
+```{r}
+library(gutenbergr)
+physics <- gutenberg_download(c(37729,14725,13476,5001),meta_fields = "author")
+```
+```{r}
+physics_words <- physics%>%
+  unnest_token(word,text)%>%
+  count(author,word,sort = TRUE)%>%
+  ungroup()
+```
+
+```{r}
+
+```

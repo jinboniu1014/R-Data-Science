@@ -1,0 +1,47 @@
+---
+title: 'Chapter 4: N-grams'
+author: "Jinbo Niu"
+date: "2023/5/12"
+output: html_document
+---
+
+
+# N-GRAM
+```{r}
+library(dplyr)
+library(tidytext)
+library(janeaustenr)
+```
+
+
+```{r}
+austen_bigrams <- austen_books() %>%
+  unnest_tokens(bigram,text,token = "ngrams",n=2)
+
+austen_bigrams
+```
+
+
+#排序
+```{r}
+austen_bigrams%>%count(bigram,sort = TRUE)
+
+```
+
+#将连在一起的停用词，如to be，of the这些，使用separate函数将这些分割成多个列，如果其中一个出现停顿词则把二元组删除
+```{r}
+library(tidyr)
+bigram_separated <- austen_bigrams%>%separate(bigram,c("word1","word2"),sep = "")
+
+bigram_filtered <- bigram_separated %>%
+  filter(!word1 %in% stop_words$word)%>%filter(!word2%in%stop_words$word)
+
+bigram_counts <- bigram_filtered %>%
+  count(word1,word2,sort = TRUE)
+
+bigram_counts
+
+```
+#再用unite包把这些词重新组合
+```{R}
+
